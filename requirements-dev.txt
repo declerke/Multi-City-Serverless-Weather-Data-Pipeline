@@ -1,0 +1,15 @@
+pytest
+pytest-cov
+pytest-mock
+moto
+
+black
+flake8
+pylint
+mypy
+
+aws-sam-cli
+awscli
+
+ipython
+python-dotenv

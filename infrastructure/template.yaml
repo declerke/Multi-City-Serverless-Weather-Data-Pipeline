@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Weather Alert System
+
+Parameters:
+  CityName:
+    Type: String
+    Default: Nairobi
+    Description: Name of the city to monitor
+  
+  Latitude:
+    Type: String
+    Default: '-1.286389'
+    Description: Latitude coordinate
+  
+  Longitude:
+    Type: String
+    Default: '36.817223'
+    Description: Longitude coordinate
+  
+  AlertEmail:
+    Type: String
+    Description: Email address for weather alerts
+  
+  ScheduleExpression:
+    Type: String
+    Default: 'rate(1 day)'
+    Description: Schedule for weather checks (e.g., rate(1 day) or cron(0 8 * * ? *))
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: python3.12
+
+Resources:
+  WeatherDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'weather-data-${CityName}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldData
+            Status: Enabled
+            ExpirationInDays: 365
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: WeatherAlertSystem
+        - Key: City
+          Value: !Ref CityName
+
+  WeatherAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'weather-alerts-${CityName}'
+      DisplayName: !Sub 'Weather Alerts for ${CityName}'
+      Subscription:
+        - Endpoint: !Ref AlertEmail
+          Protocol: email
+
+  WeatherLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'weather-alert-${CityName}'
+      CodeUri: ../src/
+      Handler: lambda_function.lambda_handler
+      Description: Fetch and analyze weather data
+      Environment:
+        Variables:
+          CITY_NAME: !Ref CityName
+          LAT: !Ref Latitude
+          LON: !Ref Longitude
+          BUCKET_NAME: !Ref WeatherDataBucket
+          SNS_TOPIC_ARN: !Ref WeatherAlertTopic
+          ALERT_THRESHOLD: '51'
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref WeatherDataBucket
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt WeatherAlertTopic.TopicName
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+            Description: Automated weather check
+            Enabled: true
+
+  WeatherLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WeatherLambdaFunction}'
+      RetentionInDays: 7
+
+Outputs:
+  BucketName:
+    Description: S3 bucket for weather data
+    Value: !Ref WeatherDataBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+  
+  SNSTopicArn:
+    Description: SNS topic ARN for alerts
+    Value: !Ref WeatherAlertTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-SNSTopicArn'
+  
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt WeatherLambdaFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaArn'
+  
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref WeatherLambdaFunction

@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Weather Alert System Infrastructure
+
+Parameters:
+  CityName:
+    Type: String
+    Default: Nairobi
+  Latitude:
+    Type: String
+    Default: '-1.286389'
+  Longitude:
+    Type: String
+    Default: '36.817223'
+  AlertEmail:
+    Type: String
+  ScheduleExpression:
+    Type: String
+    Default: 'rate(1 day)'
+
+Mappings:
+  CityMap:
+    Nairobi:
+      Lowercase: nairobi
+
+Resources:
+  WeatherDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 
+        - 'weather-data-${CityLower}-${AWS::AccountId}'
+        - CityLower: !FindInMap [CityMap, !Ref CityName, Lowercase]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  WeatherAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'weather-alerts-${CityName}'
+      Subscription:
+        - Endpoint: !Ref AlertEmail
+          Protocol: email
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: WeatherAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['s3:PutObject', 'sns:Publish']
+                Resource: '*'
+
+  WeatherLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'weather-alert-${CityName}'
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.12
+      Timeout: 30
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200, "body": "Initial Deploy Success"}
+      Environment:
+        Variables:
+          CITY_NAME: !Ref CityName
+          LAT: !Ref Latitude
+          LON: !Ref Longitude
+          BUCKET_NAME: !Ref WeatherDataBucket
+          SNS_TOPIC_ARN: !Ref WeatherAlertTopic

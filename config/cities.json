@@ -1,0 +1,44 @@
+{
+  "cities": [
+    {
+      "name": "Nairobi",
+      "country": "Kenya",
+      "latitude": -1.286389,
+      "longitude": 36.817223,
+      "timezone": "Africa/Nairobi",
+      "alert_threshold": 51
+    },
+    {
+      "name": "London",
+      "country": "United Kingdom",
+      "latitude": 51.5074,
+      "longitude": -0.1278,
+      "timezone": "Europe/London",
+      "alert_threshold": 65
+    },
+    {
+      "name": "New York",
+      "country": "United States",
+      "latitude": 40.7128,
+      "longitude": -74.0060,
+      "timezone": "America/New_York",
+      "alert_threshold": 51
+    },
+    {
+      "name": "Tokyo",
+      "country": "Japan",
+      "latitude": 35.6762,
+      "longitude": 139.6503,
+      "timezone": "Asia/Tokyo",
+      "alert_threshold": 51
+    },
+    {
+      "name": "Sydney",
+      "country": "Australia",
+      "latitude": -33.8688,
+      "longitude": 151.2093,
+      "timezone": "Australia/Sydney",
+      "alert_threshold": 51
+    }
+  ]
+}
